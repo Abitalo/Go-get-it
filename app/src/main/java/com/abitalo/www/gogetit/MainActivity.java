@@ -1,66 +1,81 @@
 package com.abitalo.www.gogetit;
 
-import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 
-import com.amap.api.location.AMapLocation;
-import com.amap.api.location.AMapLocationClient;
-import com.amap.api.location.AMapLocationClientOption;
-import com.amap.api.location.AMapLocationListener;
 import com.amap.api.maps2d.AMap;
-import com.amap.api.maps2d.CameraUpdate;
-import com.amap.api.maps2d.CameraUpdateFactory;
 import com.amap.api.maps2d.MapView;
-import com.amap.api.maps2d.model.CircleOptions;
-import com.amap.api.maps2d.model.LatLng;
+import com.mikepenz.fontawesome_typeface_library.FontAwesome;
+import com.mikepenz.google_material_typeface_library.GoogleMaterial;
+import com.mikepenz.iconics.IconicsDrawable;
 import com.mikepenz.materialdrawer.AccountHeader;
 import com.mikepenz.materialdrawer.AccountHeaderBuilder;
+import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
+import com.mikepenz.materialdrawer.interfaces.OnCheckedChangeListener;
+import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.ProfileDrawerItem;
+import com.mikepenz.materialdrawer.model.ProfileSettingDrawerItem;
+import com.mikepenz.materialdrawer.model.SectionDrawerItem;
+import com.mikepenz.materialdrawer.model.SwitchDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IProfile;
-public class MainActivity extends AppCompatActivity implements AMapLocationListener{
+import com.mikepenz.octicons_typeface_library.Octicons;
 
-    private static LatLng latLngNow=null;
+import java.util.HashMap;
+import java.util.Map;
 
+public class MainActivity extends AppCompatActivity implements OnCheckedChangeListener{
+
+    private static Handler handler=new Handler();
+
+    private static TextView mainInfo= null;
     private AccountHeader headerResult = null;//test
     private static final int PROFILE_SETTING = 100000;//test
 
-    public static TextView debugInfo=null;
+    public static TextView debugInfo=null;//test
 
-    private static TextView mainInfo= null;
-    private static MapView mMapView= null;
+    public static MapView mMapView= null;
     private static AMap mAMap=null;
 
-    private static AMapLocationClient mLocationClient = null;
-    private static AMapLocationClientOption mLocationOption = null;
 
-    String GEOFENCE_BROADCAST_ACTION="com.abitalo.www.gogetit";
-    PendingIntent pendingIntent = null;
-
-    private GeoFenceReceiver mGeoFenceReceiver = new GeoFenceReceiver();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+//      init view
+        mMapView=(MapView)findViewById(R.id.mapview);
+        mMapView.onCreate(savedInstanceState);
+
+        debugInfo=(TextView)findViewById(R.id.debug_info);// only for debug
+        mainInfo=(TextView)findViewById(R.id.main_info);
+        if(mAMap == null){
+            mAMap=mMapView.getMap();
+        }
+
+        Context context = getApplicationContext();
+        Map params = new HashMap();
+        params.put("map",mAMap);
+        params.put("mainInfo",mainInfo);
+        params.put("debugInfo",debugInfo);
+
+        new LocationThread(context,params,handler).start();
 
         // Handle Toolbar
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
         // Create a few sample profile
         // NOTE you have to define the loader logic too. See the CustomApplication for more details
-        final IProfile profile = new ProfileDrawerItem().withName("Mike Penz").withEmail("mikepenz@gmail.com").withIcon("https://avatars3.githubusercontent.com/u/1476232?v=3&s=460").withIdentifier(100);
-        final IProfile profile2 = new ProfileDrawerItem().withName("Bernat Borras").withEmail("alorma@github.com").withIcon(Uri.parse("https://avatars3.githubusercontent.com/u/887462?v=3&s=460")).withIdentifier(101);
         final IProfile profile3 = new ProfileDrawerItem().withName("Max Muster").withEmail("max.mustermann@gmail.com").withIcon(R.drawable.profile2).withIdentifier(102);
         final IProfile profile4 = new ProfileDrawerItem().withName("Felix House").withEmail("felix.house@gmail.com").withIcon(R.drawable.profile3).withIdentifier(103);
         final IProfile profile5 = new ProfileDrawerItem().withName("Mr. X").withEmail("mister.x.super@gmail.com").withIcon(R.drawable.profile4).withIdentifier(104);
@@ -71,17 +86,15 @@ public class MainActivity extends AppCompatActivity implements AMapLocationListe
                 .withActivity(this)
                 .withTranslucentStatusBar(true)
                 .withHeaderBackground(R.drawable.header)
-                .withCompactStyle(true)
+//                .withCompactStyle(true)
                 .addProfiles(
-                        profile,
-                        profile2,
                         profile3,
                         profile4,
                         profile5,
-                        profile6
+                        profile6,
                         //don't ask but google uses 14dp for the add account icon in gmail but 20dp for the normal icons (like manage account)
-//                        new ProfileSettingDrawerItem().withName("Add Account").withDescription("Add new GitHub Account").withIcon(new IconicsDrawable(this, GoogleMaterial.Icon.gmd_plus).actionBar().paddingDp(5).colorRes(R.color.material_drawer_primary_text)).withIdentifier(PROFILE_SETTING),
-//                        new ProfileSettingDrawerItem().withName("Manage Account").withIcon(GoogleMaterial.Icon.gmd_settings).withIdentifier(100001)
+                        new ProfileSettingDrawerItem().withName("Add Account").withDescription("Add new GitHub Account").withIcon(new IconicsDrawable(this, GoogleMaterial.Icon.gmd_plus).actionBar().paddingDp(5).colorRes(R.color.material_drawer_primary_text)).withIdentifier(PROFILE_SETTING),
+                        new ProfileSettingDrawerItem().withName("Manage Account").withIcon(GoogleMaterial.Icon.gmd_settings).withIdentifier(100001)
                 )
                 .withOnAccountHeaderListener(new AccountHeader.OnAccountHeaderListener() {
                     @Override
@@ -105,73 +118,33 @@ public class MainActivity extends AppCompatActivity implements AMapLocationListe
                 })
                 .withSavedInstance(savedInstanceState)
                 .build();
-
-        new DrawerBuilder().withActivity(this).withToolbar(toolbar).withAccountHeader(headerResult).build();
-//      init view
-        mMapView=(MapView)findViewById(R.id.mapview);
-        debugInfo=(TextView)findViewById(R.id.debug_info);// only for debug
-        mainInfo=(TextView)findViewById(R.id.main_info);
-        mMapView.onCreate(savedInstanceState);
-        if(mAMap == null){
-            mAMap=mMapView.getMap();
-        }
-//      init camera
-        CameraUpdate cuZoom=CameraUpdateFactory.zoomTo(20);
-        mAMap.moveCamera(cuZoom);
-//      register the receiver
-//      and init the pendingIntent for the later GeoFence's register.
-        Intent intent=new Intent(GEOFENCE_BROADCAST_ACTION);
-        pendingIntent = PendingIntent.getBroadcast(getApplicationContext(),0,intent,0);
-
-        IntentFilter intentFilter=new IntentFilter();
-        intentFilter.addAction(GEOFENCE_BROADCAST_ACTION);
-
-        this.registerReceiver(mGeoFenceReceiver,intentFilter);
-//      start location service
-        initLocationClient();
+        new DrawerBuilder().withActivity(this).withToolbar(toolbar).withAccountHeader(headerResult)
+                .addDrawerItems(
+                new PrimaryDrawerItem().withName(R.string.drawer_item_home).withDescription(R.string.drawer_item_home_desc).withIcon(FontAwesome.Icon.faw_home).withIdentifier(1).withSelectable(true),
+                new PrimaryDrawerItem().withName(R.string.drawer_item_favorite).withDescription(R.string.drawer_item_favorite_desc).withIcon(GoogleMaterial.Icon.gmd_favorite_outline).withIdentifier(2).withSelectable(true),
+                new PrimaryDrawerItem().withName(R.string.drawer_item_discovery).withDescription(R.string.drawer_item_discovery_desc).withIcon(GoogleMaterial.Icon.gmd_sun).withIdentifier(3).withSelectable(true),
+                new SectionDrawerItem(),
+                new SwitchDrawerItem().withName(R.string.drawer_item_night).withIcon(Octicons.Icon.oct_tools).withChecked(false).withOnCheckedChangeListener(this))
+        .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
+            @Override
+            public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
+                if (drawerItem != null) {
+                    Intent intent = null;
+                    if (drawerItem.getIdentifier() == 1) {
+                        intent = new Intent(MainActivity.this, MainActivity.class);
+                    } else if (drawerItem.getIdentifier() == 2) {
+                        intent = new Intent(MainActivity.this, FavoriteActivity.class);
+                    } else if (drawerItem.getIdentifier() == 3) {
+                        intent = new Intent(MainActivity.this, DiscoveryActivity.class);
+                    }
+                    if (intent != null) {
+                        MainActivity.this.startActivity(intent);
+                    }
+                } return false;
+            }
+        }).build();
     }
-//      update camera's central point
-    private void updateCamera(){
-        CameraUpdate cuMove= CameraUpdateFactory.changeLatLng(latLngNow);
-        mAMap.animateCamera(cuMove);
-    }
-//      init the GenFence area
-    private void initGenFence(){
-        mLocationClient.addGeoFenceAlert("gym", 31.048412,121.212389, 50, -1, pendingIntent);
-        mAMap.addCircle(new CircleOptions().center(new LatLng(31.048412,121.212389)).radius(50));
 
-        mLocationClient.addGeoFenceAlert("college", 31.055944, 121.21115, 50, -1, pendingIntent);
-        mAMap.addCircle(new CircleOptions().center(new LatLng(31.055944, 121.21115)).radius(50));
-
-        mLocationClient.addGeoFenceAlert("lab", 31.057585, 121.217335, 50, -1, pendingIntent);
-        mAMap.addCircle(new CircleOptions().center(new LatLng(31.057585, 121.217335)).radius(50));
-    }
-//      init the locationService and start it with some configuration
-    private void initLocationClient(){
-        mLocationClient=new AMapLocationClient(getApplicationContext());
-        mLocationClient.setLocationListener(this);
-        //初始化定位参数
-        mLocationOption = new AMapLocationClientOption();
-        //设置定位模式为高精度模式，Battery_Saving为低功耗模式，Device_Sensors是仅设备模式
-        mLocationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
-        //设置是否返回地址信息（默认返回地址信息）
-        mLocationOption.setNeedAddress(true);
-        //设置是否只定位一次,默认为false
-        mLocationOption.setOnceLocation(false);
-        //设置是否强制刷新WIFI，默认为强制刷新
-        mLocationOption.setWifiActiveScan(true);
-        //设置是否允许模拟位置,默认为false，不允许模拟位置
-        mLocationOption.setMockEnable(false);
-        //设置定位间隔,单位毫秒,默认为2000ms
-        mLocationOption.setInterval(2000);
-        //给定位客户端对象设置定位参数
-        mLocationClient.setLocationOption(mLocationOption);
-        initGenFence();
-
-        //启动定位
-        mLocationClient.startLocation();
-
-    }
 
     @Override
     protected void onResume() {
@@ -196,21 +169,9 @@ public class MainActivity extends AppCompatActivity implements AMapLocationListe
         super.onDestroy();
         mMapView.onDestroy();
     }
-//      listener when location update
-    @Override
-    public void onLocationChanged(AMapLocation aMapLocation) {
-        if (aMapLocation != null) {
-            if (aMapLocation.getErrorCode() == 0) {
-                latLngNow=new LatLng(aMapLocation.getLatitude(),aMapLocation.getLongitude());
-                updateCamera();
-                if (!mainInfo.getText().equals(aMapLocation.getAddress()))
-                    mainInfo.setText(aMapLocation.getAddress());
-            } else {
 
-                Log.e("AmapError","location Error, ErrCode:"
-                        + aMapLocation.getErrorCode() + ", errInfo:"
-                        + aMapLocation.getErrorInfo());
-            }
-        }
+    @Override
+    public void onCheckedChanged(IDrawerItem drawerItem, CompoundButton buttonView, boolean isChecked) {
+        setTheme(R.style.Night);
     }
 }
