@@ -42,9 +42,10 @@ public class LocationThread extends Thread implements AMapLocationListener {
 
     private GeoFenceReceiver mGeoFenceReceiver = new GeoFenceReceiver();
 
-    public LocationThread(Context context, Map params, Handler handler){
+    public LocationThread(AMapLocationClient client,Context context, Handler handler, Map params){
         this.context = context;
         this.handler = handler;
+        this.mLocationClient=client;
 
         this.mainInfo = (TextView) params.get("mainInfo");
         this.debugInfo = (TextView) params.get("debugInfo");
@@ -55,7 +56,7 @@ public class LocationThread extends Thread implements AMapLocationListener {
     public void run() {
         super.run();
 //      register the receiver
-//      and init the pendingIntent for the later GeoFence's register.
+//      and startLocation the pendingIntent for the later GeoFence's register.
         Intent intent=new Intent(GEOFENCE_BROADCAST_ACTION);
         pendingIntent = PendingIntent.getBroadcast(context,0,intent,0);
 
@@ -69,14 +70,14 @@ public class LocationThread extends Thread implements AMapLocationListener {
 
     //      update camera's central point
     private void updateCamera(){
-        //      init camera
+        //      startLocation camera
         CameraUpdate cuZoom=CameraUpdateFactory.zoomTo(20);
         mAMap.moveCamera(cuZoom);
-        mAMap=MainActivity.mMapView.getMap();
+        mAMap=HomeFragment.mMapView.getMap();
         CameraUpdate cuMove= CameraUpdateFactory.changeLatLng(latLngNow);
         mAMap.animateCamera(cuMove);
     }
-    //      init the GenFence area
+    //      startLocation the GenFence area
     private void initGenFence(){
 //        mLocationClient.addGeoFenceAlert("gym", 31.048412,121.212389, 50, -1, pendingIntent);
 //        mAMap.addCircle(new CircleOptions().center(new LatLng(31.048412,121.212389)).radius(50));
@@ -87,9 +88,8 @@ public class LocationThread extends Thread implements AMapLocationListener {
         mLocationClient.addGeoFenceAlert("lab", 31.054262, 121.212046, 50, -1, pendingIntent);
         mAMap.addCircle(new CircleOptions().center(new LatLng(31.054262, 121.212046)).radius(50));
     }
-    //      init the locationService and start it with some configuration
+    //      startLocation the locationService and start it with some configuration
     private void initLocationClient(){
-        mLocationClient=new AMapLocationClient(context);
         mLocationClient.setLocationListener(this);
         //初始化定位参数
         mLocationOption = new AMapLocationClientOption();
@@ -105,6 +105,7 @@ public class LocationThread extends Thread implements AMapLocationListener {
         mLocationOption.setMockEnable(false);
         //设置定位间隔,单位毫秒,默认为2000ms
         mLocationOption.setInterval(2000);
+
         //给定位客户端对象设置定位参数
         mLocationClient.setLocationOption(mLocationOption);
 

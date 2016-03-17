@@ -32,6 +32,6 @@ public class GeoFenceReceiver extends BroadcastReceiver {
         {
             Log.e("gogetit","fuckit");
         }
-        MainActivity.debugInfo.setText(sb.toString());
+        HomeFragment.debugInfo.setText(sb.toString());
     }
 }

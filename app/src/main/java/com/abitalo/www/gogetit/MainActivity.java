@@ -1,18 +1,12 @@
 package com.abitalo.www.gogetit;
 
-import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.widget.CompoundButton;
-import android.widget.TextView;
 
-import com.amap.api.maps2d.AMap;
-import com.amap.api.maps2d.MapView;
 import com.mikepenz.fontawesome_typeface_library.FontAwesome;
 import com.mikepenz.google_material_typeface_library.GoogleMaterial;
 import com.mikepenz.iconics.IconicsDrawable;
@@ -30,46 +24,28 @@ import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IProfile;
 import com.mikepenz.octicons_typeface_library.Octicons;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class MainActivity extends AppCompatActivity implements OnCheckedChangeListener{
 
-    private static Handler handler=new Handler();
+    HomeFragment homeFragment=null;
+    FavoriteFragment favoriteFragment=null;
+    DiscoveryFragment discoveryFragment=null;
 
-    private static TextView mainInfo= null;
     private AccountHeader headerResult = null;//test
     private static final int PROFILE_SETTING = 100000;//test
-
-    public static TextView debugInfo=null;//test
-
-    public static MapView mMapView= null;
-    private static AMap mAMap=null;
-
-
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-//      init view
-        mMapView=(MapView)findViewById(R.id.mapview);
-        mMapView.onCreate(savedInstanceState);
 
-        debugInfo=(TextView)findViewById(R.id.debug_info);// only for debug
-        mainInfo=(TextView)findViewById(R.id.main_info);
-        if(mAMap == null){
-            mAMap=mMapView.getMap();
-        }
+        homeFragment=new HomeFragment();
 
-        Context context = getApplicationContext();
-        Map params = new HashMap();
-        params.put("map",mAMap);
-        params.put("mainInfo",mainInfo);
-        params.put("debugInfo",debugInfo);
+        getSupportFragmentManager().beginTransaction().add(R.id.tab_content,homeFragment).commit();
 
-        new LocationThread(context,params,handler).start();
+        initDrawer(savedInstanceState);
+    }
 
+    public void initDrawer(@Nullable Bundle savedInstanceState){
         // Handle Toolbar
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -118,56 +94,37 @@ public class MainActivity extends AppCompatActivity implements OnCheckedChangeLi
                 })
                 .withSavedInstance(savedInstanceState)
                 .build();
+
         new DrawerBuilder().withActivity(this).withToolbar(toolbar).withAccountHeader(headerResult)
                 .addDrawerItems(
-                new PrimaryDrawerItem().withName(R.string.drawer_item_home).withDescription(R.string.drawer_item_home_desc).withIcon(FontAwesome.Icon.faw_home).withIdentifier(1).withSelectable(true),
-                new PrimaryDrawerItem().withName(R.string.drawer_item_favorite).withDescription(R.string.drawer_item_favorite_desc).withIcon(GoogleMaterial.Icon.gmd_favorite_outline).withIdentifier(2).withSelectable(true),
-                new PrimaryDrawerItem().withName(R.string.drawer_item_discovery).withDescription(R.string.drawer_item_discovery_desc).withIcon(GoogleMaterial.Icon.gmd_sun).withIdentifier(3).withSelectable(true),
-                new SectionDrawerItem(),
-                new SwitchDrawerItem().withName(R.string.drawer_item_night).withIcon(Octicons.Icon.oct_tools).withChecked(false).withOnCheckedChangeListener(this))
-        .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
-            @Override
-            public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
-                if (drawerItem != null) {
-                    Intent intent = null;
-                    if (drawerItem.getIdentifier() == 1) {
-                        intent = new Intent(MainActivity.this, MainActivity.class);
-                    } else if (drawerItem.getIdentifier() == 2) {
-                        intent = new Intent(MainActivity.this, FavoriteActivity.class);
-                    } else if (drawerItem.getIdentifier() == 3) {
-                        intent = new Intent(MainActivity.this, DiscoveryActivity.class);
+                        new PrimaryDrawerItem().withName(R.string.drawer_item_home).withDescription(R.string.drawer_item_home_desc).withIcon(FontAwesome.Icon.faw_home).withIdentifier(1).withSelectable(true),
+                        new PrimaryDrawerItem().withName(R.string.drawer_item_favorite).withDescription(R.string.drawer_item_favorite_desc).withIcon(GoogleMaterial.Icon.gmd_favorite_outline).withIdentifier(2).withSelectable(true),
+                        new PrimaryDrawerItem().withName(R.string.drawer_item_discovery).withDescription(R.string.drawer_item_discovery_desc).withIcon(GoogleMaterial.Icon.gmd_sun).withIdentifier(3).withSelectable(true),
+                        new SectionDrawerItem(),
+                        new SwitchDrawerItem().withName(R.string.drawer_item_night).withIcon(Octicons.Icon.oct_tools).withChecked(false).withOnCheckedChangeListener(this))
+                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
+                    @Override
+                    public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
+                        if (drawerItem != null) {
+                            if(drawerItem.getIdentifier() == 1){
+                                getSupportFragmentManager().beginTransaction().replace(R.id.tab_content,homeFragment).commit();
+                            }
+                            else if(drawerItem.getIdentifier() == 2){
+                                if (null == favoriteFragment){
+                                    favoriteFragment = new FavoriteFragment();
+                                }
+                                getSupportFragmentManager().beginTransaction().replace(R.id.tab_content,favoriteFragment).commit();
+                            }
+                            else if (drawerItem.getIdentifier() == 3){
+                                if (null == discoveryFragment){
+                                    discoveryFragment = new DiscoveryFragment();
+                                }
+                                getSupportFragmentManager().beginTransaction().replace(R.id.tab_content,discoveryFragment).commit();
+
+                            }
+                        } return false;
                     }
-                    if (intent != null) {
-                        MainActivity.this.startActivity(intent);
-                    }
-                } return false;
-            }
-        }).build();
-    }
-
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        mMapView.onResume();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        mMapView.onPause();
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        mMapView.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        mMapView.onDestroy();
+                }).build();
     }
 
     @Override
