@@ -34,7 +34,7 @@
 
 * [高德地图][AMap_Android_2D_API](http://lbs.amap.com/api/android-sdk/down/)
 * [Fresco][Fresco](https://github.com/facebook/fresco)
-* [MaterialDrawer][MaterialDrawer](hhttps://github.com/mikepenz/MaterialDrawer)
+* [MaterialDrawer][MaterialDrawer](https://github.com/mikepenz/MaterialDrawer)
 
 #Credits
 
